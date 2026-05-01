@@ -41,6 +41,7 @@ class Game {
     this.lastEvent = null;
     this.winningFightMove = null;
     this._resolvedFightEvent = null;
+    this._resolvedRecoverEvent = null;
   }
 
   addObserver(observer) {
@@ -84,8 +85,9 @@ class Game {
       this.instance = this.machine.newInstance().start();
       this.winningFightMove = null;
     } else {
-      const machineEvent = this._resolvedFightEvent || eventType;
+      const machineEvent = this._resolvedFightEvent || this._resolvedRecoverEvent || eventType;
       this._resolvedFightEvent = null;
+      this._resolvedRecoverEvent = null;
       this.instance.send({ type: machineEvent });
     }
   }
@@ -120,7 +122,19 @@ class Game {
       case 'SEA':
         this.currentLocationOrigin = 'sea';
         break;
-      case 'CHOICEONE':
+      case 'CHOICEONE': {
+        if (Math.random() < 0.4) {
+          // 40% chance: condition worsens
+          const healthLoss = Math.floor(Math.random() * 20) + 1;
+          this.playerHealth = Math.max(0, this.playerHealth - healthLoss);
+          this._resolvedRecoverEvent = 'CHOICEONE_FAIL';
+        } else {
+          const healthImprovement = Math.floor(Math.random() * 20) + 1;
+          this.playerHealth = Math.min(100, this.playerHealth + healthImprovement);
+          this._resolvedRecoverEvent = null;
+        }
+        break;
+      }
       case 'CHOICETWO':
         const healthImprovement = Math.floor(Math.random() * 20) + 1;
         this.playerHealth = Math.min(100, this.playerHealth + healthImprovement);
@@ -165,6 +179,7 @@ class Game {
       case 'LOSELAND':
       case 'LOSE_DIE':
       case 'CHOICETHREE':
+      case 'LOSE':
         this.playerHealth = 0;
         break;
       case 'RESTART':
@@ -256,9 +271,12 @@ class UI extends Observer {
       volcanoIsland: ['ENTERISLAND'],
       wildBeast: ['WINORLOSE'],
       recover: ['CHOICEONE', 'CHOICETWO', 'CHOICETHREE'],
+      recoverFail: ['LEAVE', 'LOSE'],
       islandOptions: ['RECOVER', 'LEAVE'],
       goalIsland: ['CASTLE', 'CAVE'],
       swim: ['SWIM_CLOSE', 'SWIM_FAR'],
+      secretPassage: ['DOORONE', 'DOORTWO'],
+      backEntrance: ['FOUNDPERSON'],
       strollIn: ['FOUNDPERSON'],
       fightRandom: ['FIGHT_RUTHLESS', 'FIGHT_CAREFUL'],
       looters: ['FIGHT', 'TRICK', 'RUN'],
@@ -307,7 +325,8 @@ class UI extends Observer {
       SEACHOICE: "Head to the Docks",
       RESTART: "Begin a New Hero's Journey",
       FIGHT_RUTHLESS: "Fight Ruthlessly",
-      FIGHT_CAREFUL: "Fight Carefully"
+      FIGHT_CAREFUL: "Fight Carefully",
+      LOSE: "Accept Your Fate"
     };
     this.visuals = {
       start: "assets/baloo_base.gif",
@@ -338,6 +357,7 @@ class UI extends Observer {
       volcanoIsland:'cave',
       wildBeast:    'cave',
       recover:      'cave',
+      recoverFail:  'cave',
       islandOptions:'cave',
       secretPassage:'cave',
       goalIsland:   'castle',
@@ -346,7 +366,7 @@ class UI extends Observer {
       backEntrance: 'castle',
       fightRandom:  'castle',
       stealClothes: 'castle',
-      victory:      'castle',
+      victory:      'start',
       death:        'castle'
     };
     document.getElementById('permanent-reset').onclick = () => {
@@ -380,6 +400,7 @@ class UI extends Observer {
       volcanoIsland: `You arrive at a peculiar island housing a lone volcano. The surroundings don't tell you very much, so it would be wise to investigate further.`,
       wildBeast: `You're alerted by the sound of a ghastly roar! You turn around and find yourself at the mercy of a wild beast! You draw your, ${gameState.weapon} and begin the fight for your life.`,
       recover: `After battling the beast, you must recover. Choose wisely how you will recover, for the wrong choice may lead to your demise.`,
+      recoverFail: `Somehow your condition worsened... you can no longer stay here`,
       islandOptions: `Your respite on the island has given you strength. Should you choose to stay and recover more or do you feel ready to depart for the final stretch of your journey?`,
       secretPassage: `A secret passage appears in the depths of the cave. You venture inwards to discover two doors leading into the castle. What lurks beyond?`,
       backEntrance: `You open the door to find yourself deep within the castle walls, face to face with the thief that has stolen your likeness; this is what you have been waiting for.`,
@@ -423,6 +444,13 @@ class UI extends Observer {
 
     display.innerText = this.getContent(stateName, gameState);
     if (healthDisplay) healthDisplay.innerText = `❤️ Health: ${gameState.playerHealth}`;
+
+    const titleEl = document.querySelector('header h1');
+    if (titleEl) {
+      titleEl.innerText = stateName === 'start' || !gameState.heroName
+        ? 'Web Quest'
+        : `${gameState.heroName}'s Quest`;
+    }
     actionArea.innerHTML = '';
 
     const events = this.transitions[stateName] ?? [];
@@ -431,7 +459,15 @@ class UI extends Observer {
 
       const btn = document.createElement('button');
       btn.innerText = this.actionLabels[eventType] ?? eventType;
-      btn.onclick = () => this.handleButtonClick(eventType);
+      btn.onclick = () => {
+        if (stateName === 'start') {
+          if (!this.game.heroName.trim()) this.game.heroName = 'Baloo';
+          if (!this.game.weapon) this.game.weapon = 'Sword';
+          if (!this.game.specialItem) this.game.specialItem = 'Water';
+          if (!this.game.armor) this.game.armor = 'Cloak';
+        }
+        this.handleButtonClick(eventType);
+      };
       actionArea.appendChild(btn);
     });
 
@@ -443,7 +479,7 @@ class UI extends Observer {
     if (gameState.lastEvent === 'PATCH') {
       const patchText = document.createElement('p');
       patchText.innerText = "You attempt to patch the hole, but it's not a fix. The boat is still taking on water and you lose some health as you struggle to keep it afloat. You quickly realize that the water is your only option.";
-      document.body.appendChild(patchText);
+      document.querySelector("#game-text").appendChild(patchText);
     }
     if (gameState.lastEvent === 'CHOICETHREE') {
       const choiceThree = document.createElement('p');

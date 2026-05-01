@@ -90,8 +90,15 @@ export const rpgMachine = defineMachine({
     recover: {
       on: {
         CHOICEONE: { to: 'islandOptions' },
+        CHOICEONE_FAIL: { to: 'recoverFail' },
         CHOICETWO: { to: 'islandOptions' },
         CHOICETHREE: { to: 'death' }
+      }
+    },
+    recoverFail: {
+      on: {
+        LEAVE: { to: 'goalIsland' },
+        LOSE: { to: 'death' }
       }
     },
     islandOptions: {
