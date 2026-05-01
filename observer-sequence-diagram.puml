@@ -1,0 +1,15 @@
+@startuml Observer Pattern Sequence Diagram
+actor User
+participant UI
+participant Game
+participant Observer
+
+User -> UI: Clicks button (eventType)
+UI -> Game: sendEvent(eventType)
+Game -> Game: applyEventEffects(eventType)
+Game -> Game: Update state machine
+Game -> Game: notifyObservers()
+Game -> Observer: update(gameState)
+Observer -> UI: update(gameState)
+UI -> UI: Update DOM
+@enduml

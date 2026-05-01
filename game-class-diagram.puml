@@ -1,0 +1,56 @@
+@startuml Game Class Diagram
+class Game {
+  - machine: RpgMachine
+  - instance: MachineInstance
+  - playerHealth: number
+  - opponentHealth: number
+  - currentLocationOrigin: string
+  - weapon: string
+  - specialItem: string
+  - armor: string
+  - heroName: string
+  - observers: Observer[]
+  + start(initialState?)
+  + sendEvent(eventType: string)
+  + getCurrentState(): string
+  + getAvailableTransitions(): string[]
+  + applyEventEffects(eventType: string)
+  + resetStats()
+  + save()
+  + load()
+  + isButtonDisabled(eventType: string): boolean
+  + addObserver(observer: Observer)
+  + removeObserver(observer: Observer)
+  - notifyObservers()
+}
+
+interface Observer {
+  + update(gameState: GameState)
+}
+
+class UI {
+  - game: Game
+  - transitions: object
+  - content: object
+  - actionLabels: object
+  - visuals: object
+  + update(gameState: GameState)
+  + renderStartForm()
+  + handleButtonClick(eventType: string)
+}
+
+class GameState {
+  + stateName: string
+  + playerHealth: number
+  + opponentHealth: number
+  + weapon: string
+  + specialItem: string
+  + armor: string
+  + heroName: string
+  + currentLocationOrigin: string
+}
+
+Game --> Observer : notifies
+UI ..|> Observer
+Game --> GameState : provides
+@enduml

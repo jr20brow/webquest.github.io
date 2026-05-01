@@ -1,0 +1,28 @@
+@startuml Separation of Concerns Diagram
+package "Game Logic" as GL {
+  class Game {
+    + Manage state machine
+    + Handle player stats
+    + Apply game rules
+  }
+}
+
+package "UI Logic" as UL {
+  class UI {
+    + Render interface
+    + Handle user input
+    + Update display
+  }
+}
+
+package "Data Persistence" as DP {
+  class SaveLoad {
+    + Save game state
+    + Load game state
+  }
+}
+
+GL --> UL : Notifies via Observer
+UL --> GL : Sends events
+GL --> DP : Uses for persistence
+@enduml
